@@ -295,6 +295,7 @@ fun XServerScreen(
     appId: String,
     bootToContainer: Boolean,
     testGraphics: Boolean = false,
+    isOffline: Boolean = false,
     registerBackAction: ( ( ) -> Unit ) -> Unit,
     navigateBack: () -> Unit,
     onExit: (onComplete: (() -> Unit)?) -> Unit,
@@ -418,6 +419,7 @@ fun XServerScreen(
     var elementToEdit by remember { mutableStateOf<com.winlator.inputcontrols.ControlElement?>(null) }
     var showPhysicalControllerDialog by remember { mutableStateOf(false) }
     var showPlayingBlockedDialog by rememberSaveable { mutableStateOf(false) }
+    var playingBlockedRemoteName by rememberSaveable { mutableStateOf<String?>(null) }
     var showTouchGestureDialog by remember { mutableStateOf(false) }
     var isTouchscreenModeActive by remember { mutableStateOf(container.isTouchscreenMode) }
     var currentGestureConfig by remember {
@@ -1385,9 +1387,14 @@ fun XServerScreen(
             Timber.i("onForceCloseApp")
             exit(xServerView!!.getxServer().winHandler, frameRating, currentAppInfo, container, appId, onExit, navigateBack)
         }
-        val onPlayingBlocked: (SteamEvent.PlayingBlocked) -> Unit = {
-            Timber.i("onPlayingBlocked")
-            showPlayingBlockedDialog = true
+        val onPlayingBlocked: (SteamEvent.PlayingBlocked) -> Unit = { event ->
+            if (isOffline || container.isSteamOfflineMode()) {
+                Timber.i("onPlayingBlocked suppressed (offline=$isOffline, containerOffline=${container.isSteamOfflineMode()})")
+            } else {
+                Timber.i("onPlayingBlocked remoteAppName=${event.remoteAppName}")
+                playingBlockedRemoteName = event.remoteAppName
+                showPlayingBlockedDialog = true
+            }
         }
         val debugCallback = Callback<String> { outputLine ->
             Timber.i(outputLine ?: "")
@@ -2469,13 +2476,15 @@ fun XServerScreen(
     }
 
     if (showPlayingBlockedDialog) {
+        val remoteName = playingBlockedRemoteName ?: stringResource(R.string.main_app_running_unknown_game)
         androidx.compose.material3.AlertDialog(
             onDismissRequest = {},
             title = { Text(text = stringResource(R.string.main_app_running_title)) },
-            text = { Text(text = stringResource(R.string.main_app_running_message, context.getString(R.string.main_app_running_unknown_game))) },
+            text = { Text(text = stringResource(R.string.main_app_running_message, remoteName)) },
             confirmButton = {
                 TextButton(onClick = {
                     showPlayingBlockedDialog = false
+                    playingBlockedRemoteName = null
                     SteamService.clearPlayingConflict()
                     scope.launch {
                         SteamService.kickPlayingSession(onlyGame = true)
@@ -2487,6 +2496,7 @@ fun XServerScreen(
             dismissButton = {
                 TextButton(onClick = {
                     showPlayingBlockedDialog = false
+                    playingBlockedRemoteName = null
                     exit(xServerView?.getxServer()?.winHandler, frameRating, currentAppInfo, container, appId, onExit, navigateBack)
                 }) {
                     Text(text = stringResource(R.string.cancel))
