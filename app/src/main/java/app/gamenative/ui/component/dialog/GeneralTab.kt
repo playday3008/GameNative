@@ -268,7 +268,8 @@ fun GeneralTabContent(
                 )
             },
             containerData = config,
-            steamLaunchEntries = state.steamLaunchEntries,
+            steamAppId = state.steamAppId,
+            gameSource = state.gameSource,
         )
         NoExtractOutlinedTextField(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),

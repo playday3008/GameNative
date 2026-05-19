@@ -45,7 +45,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -166,15 +165,6 @@ fun ContainerConfigDialog(
             mutableStateOf(initialConfig)
         }
         var config by configState
-
-        var steamLaunchEntries by remember { mutableStateOf(emptyList<LaunchInfo>()) }
-        LaunchedEffect(steamAppId, gameSource) {
-            steamLaunchEntries = if (steamAppId > 0 && gameSource == GameSource.STEAM) {
-                withContext(Dispatchers.IO) { SteamService.getAllLaunchInfos(steamAppId) }
-            } else {
-                emptyList()
-            }
-        }
 
         val screenSizes = stringArrayResource(R.array.screen_size_entries).toList()
         val baseGraphicsDrivers = stringArrayResource(R.array.graphics_driver_entries).toList()
@@ -1050,7 +1040,8 @@ fun ContainerConfigDialog(
             applyScreenSizeToConfig = applyScreenSizeToConfig,
             vkd3dForcedVersion = { vkd3dForcedVersion() },
             currentDxvkContext = { currentDxvkContext() },
-            steamLaunchEntries = steamLaunchEntries,
+            steamAppId = steamAppId,
+            gameSource = gameSource,
         )
 
         LoadingDialog(
@@ -1236,20 +1227,29 @@ internal fun ExecutablePathDropdown(
     onValueChange: (String) -> Unit,
     onLaunchEntrySelected: ((LaunchInfo) -> Unit)? = null,
     containerData: ContainerData,
-    steamLaunchEntries: List<LaunchInfo> = emptyList(),
+    steamAppId: Int = 0,
+    gameSource: GameSource? = null,
 ) {
     var expanded by remember { mutableStateOf(false) }
     var executables by remember { mutableStateOf<List<String>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
+    var steamLaunchEntries by remember { mutableStateOf(emptyList<LaunchInfo>()) }
     val context = LocalContext.current
 
-    // Load executables from A: drive when component is first created
     LaunchedEffect(containerData.drives) {
         isLoading = true
         executables = withContext(Dispatchers.IO) {
             ContainerUtils.scanExecutablesInADrive(containerData.drives)
         }
         isLoading = false
+    }
+
+    LaunchedEffect(steamAppId, gameSource) {
+        steamLaunchEntries = if (steamAppId > 0 && gameSource == GameSource.STEAM) {
+            withContext(Dispatchers.IO) { SteamService.getAllLaunchInfos(steamAppId) }
+        } else {
+            emptyList()
+        }
     }
 
     ExposedDropdownMenuBox(
