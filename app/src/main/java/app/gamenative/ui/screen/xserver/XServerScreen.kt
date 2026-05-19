@@ -2914,6 +2914,7 @@ private fun setupXEnvironment(
     )
     return environment
 }
+
 private fun buildWineExeFragment(winPath: String, driveLetter: Char = 'A'): String {
     return when {
         winPath.contains("://") -> "start \"$winPath\""
@@ -2922,6 +2923,7 @@ private fun buildWineExeFragment(winPath: String, driveLetter: Char = 'A'): Stri
         else -> "\"$driveLetter:\\${winPath.replace('/', '\\')}\""
     }
 }
+
 private fun getWineStartCommand(
     context: Context,
     appId: String,
