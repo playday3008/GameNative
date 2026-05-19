@@ -33,6 +33,8 @@ import org.json.JSONObject
 import timber.log.Timber
 
 object ContainerUtils {
+    private val SCANNABLE_EXTENSIONS = listOf(".exe", ".bat", ".cmd")
+
     data class GpuInfo(
         val deviceId: Int,
         val vendorId: Int,
@@ -1163,7 +1165,7 @@ object ContainerUtils {
     }
 
     /**
-     * Scans the container's A: drive for all .exe files
+     * Scans the container's A: drive for all executable files (.exe, .bat, .cmd)
      */
     fun scanExecutablesInADrive(drives: String): List<String> {
         val executables = mutableListOf<String>()
@@ -1193,7 +1195,7 @@ object ContainerUtils {
                     if (file.isDirectory) {
                         if (FileUtils.isSymlink(file)) return@forEach
                         scanRecursive(file, baseDir, depth + 1, maxDepth)
-                    } else if (file.isFile && file.name.lowercase().endsWith(".exe")) {
+                    } else if (file.isFile && SCANNABLE_EXTENSIONS.any { ext -> file.name.lowercase().endsWith(ext) }) {
                         // Convert to relative Windows path format
                         val relativePath = baseDir.toURI().relativize(file.toURI()).path
                         executables.add(relativePath)
@@ -1251,6 +1253,9 @@ object ContainerUtils {
 
             // High priority: probable main executables
             baseName.length >= 4 && !isSystemExecutable(fileName) -> 70
+
+            // Batch/cmd scripts: useful but below standard executables
+            fileName.endsWith(".bat") || fileName.endsWith(".cmd") -> 40
 
             // Medium priority: any non-system executable
             !isSystemExecutable(fileName) -> 50
