@@ -1106,6 +1106,8 @@
     <string name="container_config_vkd3d_version">VKD3D Version</string>
     <string name="container_config_executable_path">Executable Path</string>
     <string name="container_config_executable_path_placeholder">e.g., path\\to\\exe</string>
+    <string name="container_config_steam_launch_options">Steam Launch Options</string>
+    <string name="container_config_detected_files">Detected Files</string>
 
     <!-- Libraries Dialog -->
     <string name="libraries_title">Libraries Used</string>

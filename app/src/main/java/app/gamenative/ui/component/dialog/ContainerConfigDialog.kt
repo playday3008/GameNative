@@ -167,9 +167,10 @@ fun ContainerConfigDialog(
         }
         var config by configState
 
-        val steamLaunchEntries = remember(steamAppId, gameSource) {
-            if (steamAppId > 0 && gameSource == GameSource.STEAM) {
-                SteamService.getAllLaunchInfos(steamAppId)
+        var steamLaunchEntries by remember { mutableStateOf(emptyList<LaunchInfo>()) }
+        LaunchedEffect(steamAppId, gameSource) {
+            steamLaunchEntries = if (steamAppId > 0 && gameSource == GameSource.STEAM) {
+                withContext(Dispatchers.IO) { SteamService.getAllLaunchInfos(steamAppId) }
             } else {
                 emptyList()
             }
@@ -1285,7 +1286,7 @@ internal fun ExecutablePathDropdown(
                     DropdownMenuItem(
                         text = {
                             Text(
-                                text = "Steam Launch Options",
+                                text = stringResource(R.string.container_config_steam_launch_options),
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.primary,
                             )
@@ -1316,7 +1317,7 @@ internal fun ExecutablePathDropdown(
                         DropdownMenuItem(
                             text = {
                                 Text(
-                                    text = "Detected Files",
+                                    text = stringResource(R.string.container_config_detected_files),
                                     style = MaterialTheme.typography.labelMedium,
                                     color = MaterialTheme.colorScheme.primary,
                                 )
