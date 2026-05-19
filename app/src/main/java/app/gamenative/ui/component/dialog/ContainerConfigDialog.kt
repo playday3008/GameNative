@@ -1209,6 +1209,21 @@ private fun Preview_ContainerConfigDialog() {
     }
 }
 
+private fun buildLaunchEntryDisplayText(entry: LaunchInfo): String {
+    val execAndArgs = buildString {
+        append(entry.executable)
+        if (entry.arguments.isNotEmpty()) {
+            append(" ")
+            append(entry.arguments)
+        }
+    }
+    return if (entry.description.isNotEmpty()) {
+        "${entry.description} ($execAndArgs)"
+    } else {
+        execAndArgs
+    }
+}
+
 /**
  * Editable dropdown for selecting executable paths from the container's A: drive
  */
@@ -1218,7 +1233,9 @@ internal fun ExecutablePathDropdown(
     modifier: Modifier = Modifier,
     value: String,
     onValueChange: (String) -> Unit,
+    onLaunchEntrySelected: ((LaunchInfo) -> Unit)? = null,
     containerData: ContainerData,
+    steamLaunchEntries: List<LaunchInfo> = emptyList(),
 ) {
     var expanded by remember { mutableStateOf(false) }
     var executables by remember { mutableStateOf<List<String>>(emptyList()) }
@@ -1258,33 +1275,79 @@ internal fun ExecutablePathDropdown(
             singleLine = true
         )
 
-        if (!isLoading && executables.isNotEmpty()) {
+        if (!isLoading && (executables.isNotEmpty() || steamLaunchEntries.isNotEmpty())) {
             ExposedDropdownMenu(
                 expanded = expanded,
                 onDismissRequest = { expanded = false }
             ) {
-                executables.forEach { executable ->
+                // Section 1: Steam Launch Options
+                if (steamLaunchEntries.isNotEmpty()) {
                     DropdownMenuItem(
                         text = {
-                            Column {
-                                Text(
-                                    text = executable.substringAfterLast('\\'),
-                                    style = MaterialTheme.typography.bodyMedium
-                                )
-                                if (executable.contains('\\')) {
-                                    Text(
-                                        text = executable.substringBeforeLast('\\'),
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
+                            Text(
+                                text = "Steam Launch Options",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
                         },
-                        onClick = {
-                            onValueChange(executable)
-                            expanded = false
-                        }
+                        onClick = {},
+                        enabled = false,
                     )
+                    steamLaunchEntries.forEach { entry ->
+                        val displayText = buildLaunchEntryDisplayText(entry)
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    text = displayText,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                )
+                            },
+                            onClick = {
+                                onLaunchEntrySelected?.invoke(entry)
+                                expanded = false
+                            },
+                        )
+                    }
+                }
+
+                // Section 2: Detected Files
+                if (executables.isNotEmpty()) {
+                    if (steamLaunchEntries.isNotEmpty()) {
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    text = "Detected Files",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                            },
+                            onClick = {},
+                            enabled = false,
+                        )
+                    }
+                    executables.forEach { executable ->
+                        DropdownMenuItem(
+                            text = {
+                                Column {
+                                    Text(
+                                        text = executable.substringAfterLast('\\'),
+                                        style = MaterialTheme.typography.bodyMedium
+                                    )
+                                    if (executable.contains('\\')) {
+                                        Text(
+                                            text = executable.substringBeforeLast('\\'),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                            },
+                            onClick = {
+                                onValueChange(executable)
+                                expanded = false
+                            },
+                        )
+                    }
                 }
             }
         }
