@@ -2914,6 +2914,14 @@ private fun setupXEnvironment(
     )
     return environment
 }
+private fun buildWineExeFragment(winPath: String, driveLetter: Char = 'A'): String {
+    return when {
+        winPath.contains("://") -> "start \"$winPath\""
+        winPath.lowercase().let { it.endsWith(".bat") || it.endsWith(".cmd") } ->
+            "cmd /c \"$driveLetter:\\${winPath.replace('/', '\\')}\""
+        else -> "\"$driveLetter:\\${winPath.replace('/', '\\')}\""
+    }
+}
 private fun getWineStartCommand(
     context: Context,
     appId: String,
@@ -3270,10 +3278,8 @@ private fun getWineStartCommand(
         val executableDir = gameFolderPath + "/" + executablePath.substringBeforeLast("/", "")
         guestProgramLauncherComponent.workingDir = File(executableDir)
 
-        // Normalize path separators (ensure Windows-style backslashes)
-        val normalizedPath = executablePath.replace('/', '\\')
         envVars.put("WINEPATH", "A:\\")
-        "\"A:\\${normalizedPath}\""
+        buildWineExeFragment(executablePath, 'A')
     } else if (container.executablePath.isEmpty()) {
         // For Steam games, we need appLaunchInfo
         Timber.tag("XServerScreen").w("appLaunchInfo is null for Steam game: $appId")
@@ -3311,7 +3317,7 @@ private fun getWineStartCommand(
                 if (appLaunchInfo != null){
                     envVars.put("WINEPATH", "$drive:/${appLaunchInfo.workingDir}")
                 }
-                "\"$drive:/${executablePath}\""
+                buildWineExeFragment(executablePath, drive)
             } else {
                 "\"C:\\\\Program Files (x86)\\\\Steam\\\\steamclient_loader_x64.exe\""
             }
