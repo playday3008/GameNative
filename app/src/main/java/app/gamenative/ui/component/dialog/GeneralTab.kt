@@ -40,6 +40,7 @@ import com.winlator.container.ContainerData
 import com.winlator.core.DefaultVersion
 import com.winlator.core.KeyValueSet
 import com.winlator.core.StringUtils
+import app.gamenative.data.LaunchInfo
 import com.winlator.contents.ContentProfile
 import java.util.Locale
 
@@ -260,7 +261,14 @@ fun GeneralTabContent(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
             value = config.executablePath,
             onValueChange = { state.config.value = config.copy(executablePath = it) },
+            onLaunchEntrySelected = { entry ->
+                state.config.value = config.copy(
+                    executablePath = entry.executable,
+                    execArgs = entry.arguments,
+                )
+            },
             containerData = config,
+            steamLaunchEntries = state.steamLaunchEntries,
         )
         NoExtractOutlinedTextField(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
