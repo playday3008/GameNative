@@ -2,6 +2,7 @@ package app.gamenative.ui.component.dialog
 
 import androidx.compose.runtime.MutableIntState
 import androidx.compose.runtime.MutableState
+import app.gamenative.data.LaunchInfo
 import app.gamenative.utils.ContainerUtils
 import app.gamenative.utils.ManifestComponentHelper
 import app.gamenative.utils.ManifestEntry
@@ -135,4 +136,5 @@ class ContainerConfigState(
     val applyScreenSizeToConfig: () -> Unit,
     val vkd3dForcedVersion: () -> String,
     val currentDxvkContext: () -> ManifestComponentHelper.DxvkContext,
+    val steamLaunchEntries: List<LaunchInfo> = emptyList(),
 )

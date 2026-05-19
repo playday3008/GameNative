@@ -89,6 +89,8 @@ import app.gamenative.utils.ManifestContentTypes
 import app.gamenative.utils.ManifestData
 import app.gamenative.utils.ManifestEntry
 import app.gamenative.utils.ManifestInstaller
+import app.gamenative.data.GameSource
+import app.gamenative.data.LaunchInfo
 import app.gamenative.service.SteamService
 import app.gamenative.utils.ManifestComponentHelper.VersionOptionList
 import app.gamenative.utils.ManifestRepository
@@ -143,6 +145,8 @@ fun ContainerConfigDialog(
     default: Boolean = false,
     title: String,
     initialConfig: ContainerData = ContainerData(),
+    steamAppId: Int = 0,
+    gameSource: GameSource? = null,
     onDismissRequest: () -> Unit,
     onSave: (ContainerData) -> Unit,
 ) {
@@ -162,6 +166,14 @@ fun ContainerConfigDialog(
             mutableStateOf(initialConfig)
         }
         var config by configState
+
+        val steamLaunchEntries = remember(steamAppId, gameSource) {
+            if (steamAppId > 0 && gameSource == GameSource.STEAM) {
+                SteamService.getAllLaunchInfos(steamAppId)
+            } else {
+                emptyList()
+            }
+        }
 
         val screenSizes = stringArrayResource(R.array.screen_size_entries).toList()
         val baseGraphicsDrivers = stringArrayResource(R.array.graphics_driver_entries).toList()
@@ -1037,6 +1049,7 @@ fun ContainerConfigDialog(
             applyScreenSizeToConfig = applyScreenSizeToConfig,
             vkd3dForcedVersion = { vkd3dForcedVersion() },
             currentDxvkContext = { currentDxvkContext() },
+            steamLaunchEntries = steamLaunchEntries,
         )
 
         LoadingDialog(
