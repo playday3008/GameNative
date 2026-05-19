@@ -1251,11 +1251,11 @@ object ContainerUtils {
 
             fileName.contains("launcher") && !fileName.contains("unins") -> 75
 
-            // High priority: probable main executables
-            baseName.length >= 4 && !isSystemExecutable(fileName) -> 70
-
             // Batch/cmd scripts: useful but below standard executables
             fileName.endsWith(".bat") || fileName.endsWith(".cmd") -> 40
+
+            // High priority: probable main executables
+            baseName.length >= 4 && !isSystemExecutable(fileName) -> 70
 
             // Medium priority: any non-system executable
             !isSystemExecutable(fileName) -> 50

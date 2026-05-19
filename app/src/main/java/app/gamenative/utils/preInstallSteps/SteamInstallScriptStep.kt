@@ -2,6 +2,7 @@ package app.gamenative.utils
 
 import app.gamenative.data.GameSource
 import app.gamenative.enums.Marker
+import app.gamenative.service.SteamService
 import com.winlator.container.Container
 import `in`.dragonbra.javasteam.enums.EDepotFileFlag
 import `in`.dragonbra.javasteam.types.DepotManifest
@@ -31,7 +32,7 @@ object SteamInstallScriptStep : PreInstallStep {
         gameDir: File,
         gameDirPath: String,
     ): String? {
-        val scriptFiles = findInstallScriptFiles(gameDir)
+        val scriptFiles = findInstallScriptFiles(appId, gameDir)
         if (scriptFiles.isEmpty()) {
             Timber.tag(TAG).i("No install script files found for appId=%s", appId)
             return null
@@ -51,7 +52,21 @@ object SteamInstallScriptStep : PreInstallStep {
         return if (allCommands.isEmpty()) null else allCommands.joinToString(" & ")
     }
 
-    private fun findInstallScriptFiles(gameDir: File): List<File> {
+    private fun findInstallScriptFiles(appId: String, gameDir: File): List<File> {
+        val gameId = appId.toIntOrNull()
+        if (gameId != null) {
+            val steamApp = SteamService.getAppInfoOf(gameId)
+            if (steamApp?.installScriptOverride == true && steamApp.installScript.isNotEmpty()) {
+                Timber.tag(TAG).i("Using override install script: %s", steamApp.installScript)
+                val overrideFile = File(gameDir, steamApp.installScript.replace('\\', '/'))
+                return if (overrideFile.isFile) listOf(overrideFile) else emptyList()
+            }
+        }
+
+        return findInstallScriptFilesFromManifests(gameDir)
+    }
+
+    private fun findInstallScriptFilesFromManifests(gameDir: File): List<File> {
         val depotDir = File(gameDir, DEPOT_DIR)
         if (!depotDir.isDirectory) return emptyList()
 

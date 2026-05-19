@@ -29,8 +29,8 @@ object PreInstallSteps {
         OpenALStep,
         XnaFrameworkStep,
         GogScriptInterpreterStep,
-        SteamInstallScriptStep,
         UbisoftConnectStep,
+        SteamInstallScriptStep,
     )
 
     private var stepsProvider: () -> List<PreInstallStep> = { steps }
