@@ -2092,6 +2092,12 @@ class SteamService : Service(), IChallengeUrlChanged {
             }.orEmpty()
         }
 
+        fun getAllLaunchInfos(appId: Int): List<LaunchInfo> {
+            return getAppInfoOf(appId)?.let { appInfo ->
+                appInfo.config.launch
+            }.orEmpty()
+        }
+
         suspend fun notifyRunningProcesses(vararg gameProcesses: GameProcessInfo) = withContext(Dispatchers.IO) {
             instance?.let { steamInstance ->
                 if (isConnected) {
