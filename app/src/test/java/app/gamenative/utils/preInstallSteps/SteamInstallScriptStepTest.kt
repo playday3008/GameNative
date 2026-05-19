@@ -7,6 +7,7 @@ import io.mockk.mockk
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.After
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -23,6 +24,11 @@ class SteamInstallScriptStepTest {
     fun setUp() {
         container = mockk(relaxed = true)
         gameDir = createTempDirectory(prefix = "steam-installscript-test").toFile()
+    }
+
+    @After
+    fun tearDown() {
+        gameDir.deleteRecursively()
     }
 
     @Test

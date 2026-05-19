@@ -2092,10 +2092,10 @@ class SteamService : Service(), IChallengeUrlChanged {
             }.orEmpty()
         }
 
-        fun getAllLaunchInfos(appId: Int): List<LaunchInfo> {
-            return getAppInfoOf(appId)?.let { appInfo ->
-                appInfo.config.launch
-            }.orEmpty()
+        suspend fun getAllLaunchInfos(appId: Int): List<LaunchInfo> {
+            return withContext(Dispatchers.IO) {
+                instance?.appDao?.findApp(appId)
+            }?.config?.launch.orEmpty()
         }
 
         suspend fun notifyRunningProcesses(vararg gameProcesses: GameProcessInfo) = withContext(Dispatchers.IO) {

@@ -4,7 +4,9 @@ import `in`.dragonbra.javasteam.types.KeyValue
 import timber.log.Timber
 
 object InstallScriptInterpreter {
-    private const val TAG = "InstallScriptInterpreter"
+
+    private fun shellEscape(s: String): String =
+        s.replace("\"", "\\\"").replace("$", "\\$").replace("`", "\\`")
 
     fun buildAllCommands(kv: KeyValue): List<String> {
         return buildRegistryCommands(kv) + buildRunProcessCommands(kv)
@@ -35,11 +37,11 @@ object InstallScriptInterpreter {
         val commands = mutableListOf<String>()
 
         for (pathEntry in registry.children) {
-            val regPath = pathEntry.name ?: continue
+            val regPath = shellEscape(pathEntry.name ?: continue)
 
             for (stringEntry in pathEntry["string"].children) {
-                val valueName = stringEntry.name ?: continue
-                val expandedValue = expandEnvVars(stringEntry.value ?: "")
+                val valueName = shellEscape(stringEntry.name ?: continue)
+                val expandedValue = shellEscape(expandEnvVars(stringEntry.value ?: ""))
                 commands.add(
                     if (valueName == "(Default)") {
                         "wine reg add \"$regPath\" /ve /t REG_SZ /d \"$expandedValue\" /f"
@@ -50,7 +52,7 @@ object InstallScriptInterpreter {
             }
 
             for (dwordEntry in pathEntry["dword"].children) {
-                val valueName = dwordEntry.name ?: continue
+                val valueName = shellEscape(dwordEntry.name ?: continue)
                 val value = dwordEntry.value ?: "0"
                 commands.add(
                     if (valueName == "(Default)") {
@@ -72,7 +74,7 @@ object InstallScriptInterpreter {
         val commands = mutableListOf<String>()
 
         for (entry in runProcess.children) {
-            val process = expandEnvVars(entry["process 1"].value ?: continue)
+            val process = shellEscape(expandEnvVars(entry["process 1"].value ?: continue))
             val command = expandEnvVars(entry["command 1"].value ?: "")
             val hasRunKey = entry["HasRunKey"].value?.takeIf { it.isNotEmpty() }
 
@@ -81,10 +83,10 @@ object InstallScriptInterpreter {
                 val parentKey: String
                 val valueName: String
                 if (lastSep >= 0) {
-                    parentKey = hasRunKey.substring(0, lastSep)
-                    valueName = hasRunKey.substring(lastSep + 1)
+                    parentKey = shellEscape(hasRunKey.substring(0, lastSep))
+                    valueName = shellEscape(hasRunKey.substring(lastSep + 1))
                 } else {
-                    parentKey = hasRunKey
+                    parentKey = shellEscape(hasRunKey)
                     valueName = ""
                 }
 
