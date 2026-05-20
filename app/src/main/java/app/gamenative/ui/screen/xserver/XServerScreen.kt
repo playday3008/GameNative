@@ -265,6 +265,7 @@ private fun normalizeProcessName(name: String): String {
 
 private fun extractExecutableBasename(path: String): String {
     if (path.isBlank()) return ""
+    if (ContainerUtils.isUriScheme(path)) return ""
     return normalizeProcessName(path)
 }
 
@@ -1689,7 +1690,7 @@ fun XServerScreen(
                 if (!bootToContainer) {
                     renderer.setUnviewableWMClasses("explorer.exe")
                     // TODO: make 'force fullscreen' be an option of the app being launched
-                    if (container.executablePath.isNotBlank()) {
+                    if (container.executablePath.isNotBlank() && !ContainerUtils.isUriScheme(container.executablePath)) {
                         renderer.forceFullscreenWMClass = Paths.get(container.executablePath).name
                     }
                 }
@@ -3723,7 +3724,11 @@ private fun getWineStartCommand(
         // Normalize path separators (ensure Windows-style backslashes)
         val normalizedPath = executablePath.replace('/', '\\')
         envVars.put("WINEPATH", "A:\\")
-        "\"A:\\${normalizedPath}\""
+        when {
+            ContainerUtils.isUriScheme(executablePath) -> "start $executablePath"
+            ContainerUtils.isBatchScript(executablePath) -> "cmd /c \"A:\\${normalizedPath}\""
+            else -> "\"A:\\${normalizedPath}\""
+        }
     } else if (container.executablePath.isEmpty()) {
         // For Steam games, we need appLaunchInfo
         Timber.tag("XServerScreen").w("appLaunchInfo is null for Steam game: $appId")
@@ -3773,7 +3778,11 @@ private fun getWineStartCommand(
                 if (appLaunchInfo != null){
                     envVars.put("WINEPATH", "$drive:/${appLaunchInfo.workingDir}")
                 }
-                "\"$drive:/${executablePath}\""
+                when {
+                    ContainerUtils.isUriScheme(executablePath) -> "start $executablePath"
+                    ContainerUtils.isBatchScript(executablePath) -> "cmd /c \"$drive:/${executablePath}\""
+                    else -> "\"$drive:/${executablePath}\""
+                }
             } else {
                 "\"C:\\\\Program Files (x86)\\\\Steam\\\\steamclient_loader_x64.exe\""
             }
