@@ -106,6 +106,7 @@ import app.gamenative.utils.ExecutableSelectionUtils
 import app.gamenative.utils.LsfgQuickMenuHelper
 import app.gamenative.utils.ManifestComponentHelper
 import app.gamenative.utils.PreInstallSteps
+import app.gamenative.utils.installscript.InstallScriptExecutor
 import app.gamenative.utils.SteamTokenLogin
 import app.gamenative.utils.SteamUtils
 import app.gamenative.utils.WineProcessSnapshotHelper
@@ -3051,6 +3052,7 @@ private fun setupXEnvironment(
     }
 
     var preInstallCommands: List<PreInstallSteps.PreInstallCommand> = emptyList()
+    var installScriptRunProcessCommands = emptyList<InstallScriptExecutor.RunProcessCommand>()
     var gameExecutable = ""
 
     if (container != null) {
@@ -3059,6 +3061,39 @@ private fun setupXEnvironment(
         } catch (e: Exception) {
             Timber.tag("GameFixes").w(e, "Game fixes failed before launch")
         }
+        if (gameSource == GameSource.STEAM) {
+            try {
+                val numericGameId = ContainerUtils.extractGameIdFromContainerId(appId)
+                val steamApp = SteamService.getAppInfoOf(numericGameId)
+                val appInfoObj = runBlocking(Dispatchers.IO) {
+                    SteamService.instance?.appInfoDao?.get(numericGameId)
+                }
+                val gameDir = PreInstallSteps.getGameDir(container)
+                if (steamApp != null && appInfoObj != null && gameDir != null) {
+                    val installDir = "A:"
+                    val scripts = InstallScriptExecutor.collectScripts(
+                        steamApp = steamApp,
+                        appInfo = appInfoObj,
+                        gameDir = gameDir,
+                        installDir = installDir,
+                        language = container.language,
+                    )
+                    if (scripts.isNotEmpty()) {
+                        Timber.tag("InstallScript").i("Applying registry keys from ${scripts.size} install script(s)")
+                        InstallScriptExecutor.applyRegistryKeys(container, scripts, container.language)
+                        installScriptRunProcessCommands = InstallScriptExecutor.getRunProcessCommands(
+                            container = container,
+                            scripts = scripts,
+                            screenInfo = xServer.screenInfo.toString(),
+                            is64Bit = container.isWoW64Mode,
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                Timber.tag("InstallScript").w(e, "InstallScript execution failed")
+            }
+        }
+
         if (container.startupSelection == Container.STARTUP_SELECTION_AGGRESSIVE) {
             if (container.containerVariant.equals(Container.BIONIC)){
                 Timber.d("Incorrect startup selection detected. Reverting to essential startup selection")
@@ -3090,8 +3125,9 @@ private fun setupXEnvironment(
             xServer.screenInfo.toString(),
             containerVariantChanged,
         )
-        guestProgramLauncherComponent.guestExecutable =
-            preInstallCommands.firstOrNull()?.executable ?: gameExecutable
+        val firstChainedExecutable = preInstallCommands.firstOrNull()?.executable
+            ?: installScriptRunProcessCommands.firstOrNull()?.executable
+        guestProgramLauncherComponent.guestExecutable = firstChainedExecutable ?: gameExecutable
         guestProgramLauncherComponent.isWoW64Mode = wow64Mode
         // Set steam type for selecting appropriate box64rc
         guestProgramLauncherComponent.setSteamType(container.getSteamType())
@@ -3132,7 +3168,7 @@ private fun setupXEnvironment(
                 containerVariantChanged = containerVariantChanged,
                 onError = onGameLaunchError
             )
-            if (preInstallCommands.isNotEmpty()) {
+            if (preInstallCommands.isNotEmpty() || installScriptRunProcessCommands.isNotEmpty()) {
                 PluviaApp.events.emit(AndroidEvent.SetBootingSplashText("Installing prerequisites..."))
             } else {
                 PluviaApp.events.emit(AndroidEvent.SetBootingSplashText("Launching game..."))
@@ -3211,7 +3247,24 @@ private fun setupXEnvironment(
         PluviaApp.events.emit(AndroidEvent.GuestProgramTerminated)
     }
 
-    fun chainPreInstallSteps(remaining: List<PreInstallSteps.PreInstallCommand>) {
+    data class ChainedCommand(
+        val executable: String,
+        val onComplete: () -> Unit,
+    )
+
+    val chainedPreInstall = preInstallCommands.map { cmd ->
+        ChainedCommand(cmd.executable) { PreInstallSteps.markStepDone(container, cmd.marker) }
+    }
+    val chainedInstallScript = installScriptRunProcessCommands.map { cmd ->
+        ChainedCommand(cmd.executable) {
+            if (cmd.hasRunKey != null) {
+                InstallScriptExecutor.markRunProcessComplete(container, cmd.hasRunKey)
+            }
+        }
+    }
+    val allChainedCommands = chainedPreInstall + chainedInstallScript
+
+    fun chainCommands(remaining: List<ChainedCommand>) {
         if (remaining.isEmpty()) {
             guestProgramLauncherComponent.setGuestExecutable(gameExecutable)
             guestProgramLauncherComponent.setTerminationCallback(gameTerminationCallback)
@@ -3219,13 +3272,12 @@ private fun setupXEnvironment(
         }
         guestProgramLauncherComponent.setGuestExecutable(remaining.first().executable)
         guestProgramLauncherComponent.setTerminationCallback { _ ->
-            val current = remaining.first()
-            PreInstallSteps.markStepDone(container, current.marker)
+            remaining.first().onComplete()
             guestProgramLauncherComponent.setPreUnpack(null)
             try {
                 guestProgramLauncherComponent.execShellCommand("wineserver -k")
             } catch (e: Exception) {
-                Timber.w(e, "wineserver -k between pre-install steps (non-fatal)")
+                Timber.w(e, "wineserver -k between chained commands (non-fatal)")
             }
             val nextRemaining = remaining.drop(1)
             if (nextRemaining.isEmpty()) {
@@ -3233,13 +3285,13 @@ private fun setupXEnvironment(
             } else {
                 PluviaApp.events.emit(AndroidEvent.SetBootingSplashText("Installing prerequisites..."))
             }
-            chainPreInstallSteps(nextRemaining)
+            chainCommands(nextRemaining)
             guestProgramLauncherComponent.start()
         }
     }
 
-    if (preInstallCommands.isNotEmpty()) {
-        chainPreInstallSteps(preInstallCommands)
+    if (allChainedCommands.isNotEmpty()) {
+        chainCommands(allChainedCommands)
     } else {
         guestProgramLauncherComponent.setTerminationCallback(gameTerminationCallback)
     }
