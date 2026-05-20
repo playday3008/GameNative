@@ -1262,7 +1262,7 @@ internal fun ExecutablePathDropdown(
         picsEntries = pics
         executables = scanned
 
-        if (value.isEmpty() && pics.isNotEmpty()) {
+        if (pics.isNotEmpty() && containerData.execArgs.isEmpty()) {
             val defaultEntry = pics.firstOrNull { it.type == "default" } ?: pics.first()
             onLaunchOptionSelected(defaultEntry.executable, defaultEntry.arguments)
         }
