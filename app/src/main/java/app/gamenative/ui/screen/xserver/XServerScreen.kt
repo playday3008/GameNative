@@ -3729,7 +3729,7 @@ private fun getWineStartCommand(
         val normalizedPath = executablePath.replace('/', '\\')
         envVars.put("WINEPATH", "A:\\")
         when {
-            ContainerUtils.isUriScheme(executablePath) -> "cmd /c start \"\" \"$executablePath\""
+            ContainerUtils.isUriScheme(executablePath) -> "cmd /c start /WAIT \"\" \"$executablePath\""
             ContainerUtils.isBatchScript(executablePath) -> "cmd /c \"A:\\${normalizedPath}\""
             else -> "\"A:\\${normalizedPath}\""
         }
@@ -3787,7 +3787,7 @@ private fun getWineStartCommand(
                     envVars.put("WINEPATH", "$drive:/${appLaunchInfo.workingDir}")
                 }
                 when {
-                    ContainerUtils.isUriScheme(executablePath) -> "cmd /c start \"\" \"$executablePath\""
+                    ContainerUtils.isUriScheme(executablePath) -> "cmd /c start /WAIT \"\" \"$executablePath\""
                     ContainerUtils.isBatchScript(executablePath) -> "cmd /c \"$drive:/${executablePath}\""
                     else -> "\"$drive:/${executablePath}\""
                 }
