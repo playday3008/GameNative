@@ -143,6 +143,7 @@ fun ContainerConfigDialog(
     default: Boolean = false,
     title: String,
     initialConfig: ContainerData = ContainerData(),
+    steamAppId: Int? = null,
     onDismissRequest: () -> Unit,
     onSave: (ContainerData) -> Unit,
 ) {
@@ -941,6 +942,7 @@ fun ContainerConfigDialog(
 
         val state = ContainerConfigState(
             config = configState,
+            steamAppId = steamAppId,
             graphicsDrivers = graphicsDriversRef,
             bionicWineEntries = bionicWineEntriesRef,
             glibcWineEntries = glibcWineEntriesRef,
