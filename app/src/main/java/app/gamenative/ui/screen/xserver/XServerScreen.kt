@@ -3077,6 +3077,7 @@ private fun setupXEnvironment(
                         gameDir = gameDir,
                         installDir = installDir,
                         language = container.language,
+                        appId = numericGameId,
                     )
                     if (scripts.isNotEmpty()) {
                         Timber.tag("InstallScript").i("Applying registry keys from ${scripts.size} install script(s)")

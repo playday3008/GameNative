@@ -2,9 +2,13 @@ package app.gamenative.utils.installscript
 
 import app.gamenative.data.AppInfo
 import app.gamenative.data.SteamApp
+import app.gamenative.service.SteamService
 import com.winlator.container.Container
 import com.winlator.core.WineRegistryEditor
+import `in`.dragonbra.javasteam.enums.EDepotFileFlag
+import `in`.dragonbra.javasteam.types.DepotManifest
 import java.io.File
+import java.util.EnumSet
 import timber.log.Timber
 
 object InstallScriptExecutor {
@@ -22,20 +26,54 @@ object InstallScriptExecutor {
         gameDir: File,
         installDir: String,
         language: String,
+        appId: Int,
     ): List<InstallScript> {
+        val appDirPath = SteamService.getAppDirPath(appId)
         val downloadedDepotIds = appInfo.downloadedDepots.toSet()
-        return steamApp.depots
-            .filter { (depotId, depot) ->
-                depotId in downloadedDepotIds && depot.installScript.isNotEmpty()
-            }
-            .mapNotNull { (_, depot) ->
-                val scriptFile = File(gameDir, depot.installScript)
-                if (!scriptFile.exists()) {
-                    Timber.w("InstallScript file not found: ${scriptFile.absolutePath}")
-                    return@mapNotNull null
+        val installedBranch = SteamService.getInstalledApp(appId)?.branch ?: "public"
+
+        val scriptPaths = mutableSetOf<String>()
+
+        for ((depotId, depot) in steamApp.depots) {
+            if (depotId !in downloadedDepotIds) continue
+
+            val mi = depot.manifests[installedBranch]
+                ?: depot.encryptedManifests[installedBranch]
+                ?: depot.manifests["public"]
+                ?: continue
+
+            val manifestFile = "$appDirPath/.DepotDownloader/${depotId}_${mi.gid}.manifest"
+            val manifest = try {
+                DepotManifest.loadFromFile(manifestFile)
+            } catch (e: Exception) {
+                Timber.tag("InstallScript").d("Could not load manifest for depot $depotId: ${e.message}")
+                continue
+            } ?: continue
+
+            manifest.files?.forEach { fileData ->
+                if (isInstallScript(fileData.flags)) {
+                    val path = fileData.fileName.toString().replace('\\', '/')
+                    scriptPaths.add(path)
+                    Timber.tag("InstallScript").d("Found install script in depot $depotId: $path")
                 }
-                InstallScriptParser.parse(scriptFile, installDir, language)
             }
+        }
+
+        return scriptPaths.mapNotNull { relativePath ->
+            val scriptFile = File(gameDir, relativePath)
+            if (!scriptFile.exists()) {
+                Timber.tag("InstallScript").w("InstallScript file not found: ${scriptFile.absolutePath}")
+                return@mapNotNull null
+            }
+            InstallScriptParser.parse(scriptFile, installDir, language)
+        }
+    }
+
+    private fun isInstallScript(flags: Any): Boolean = when (flags) {
+        is EnumSet<*> -> flags.contains(EDepotFileFlag.InstallScript)
+        is Int -> (flags and EDepotFileFlag.InstallScript.code()) != 0
+        is Long -> (flags and EDepotFileFlag.InstallScript.code().toLong()) != 0L
+        else -> false
     }
 
     fun applyRegistryKeys(container: Container, scripts: List<InstallScript>, language: String) {

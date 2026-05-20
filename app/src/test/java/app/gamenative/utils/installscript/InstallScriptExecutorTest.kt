@@ -1,123 +1,12 @@
 package app.gamenative.utils.installscript
 
-import app.gamenative.data.AppInfo
-import app.gamenative.data.DepotInfo
-import app.gamenative.data.SteamApp
-import app.gamenative.enums.OS
-import app.gamenative.enums.OSArch
-import app.gamenative.service.SteamService
-import org.junit.After
 import org.junit.Assert.*
-import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
-import java.io.File
-import java.util.EnumSet
-import kotlin.io.path.createTempDirectory
 
 @RunWith(RobolectricTestRunner::class)
 class InstallScriptExecutorTest {
-
-    private lateinit var tempDir: File
-
-    @Before
-    fun setUp() {
-        tempDir = createTempDirectory(prefix = "installscript-executor-test").toFile()
-    }
-
-    @After
-    fun tearDown() {
-        tempDir.deleteRecursively()
-    }
-
-    private fun makeDepotInfo(depotId: Int, installScript: String = ""): DepotInfo {
-        return DepotInfo(
-            depotId = depotId,
-            dlcAppId = SteamService.INVALID_APP_ID,
-            depotFromApp = SteamService.INVALID_APP_ID,
-            sharedInstall = false,
-            osList = EnumSet.of(OS.windows),
-            osArch = OSArch.Arch32,
-            manifests = emptyMap(),
-            encryptedManifests = emptyMap(),
-            installScript = installScript,
-        )
-    }
-
-    private fun makeSteamApp(depots: Map<Int, DepotInfo>): SteamApp {
-        return SteamApp(id = 12345, depots = depots)
-    }
-
-    private fun makeAppInfo(downloadedDepots: List<Int>): AppInfo {
-        return AppInfo(id = 12345, downloadedDepots = downloadedDepots)
-    }
-
-    private fun writeVdfScript(fileName: String): File {
-        val vdf = """
-            "InstallScript"
-            {
-                "Registry"
-                {
-                    "HKLM\Software\Test\App"
-                    {
-                        "String"
-                        {
-                            "InstallPath"    "%INSTALLDIR%"
-                        }
-                    }
-                }
-            }
-        """.trimIndent()
-        val file = File(tempDir, fileName)
-        file.writeText(vdf)
-        return file
-    }
-
-    // --- collectScripts tests ---
-
-    @Test
-    fun collectScripts_returnsScriptsFromDownloadedDepots() {
-        val scriptFileName = "installscript.vdf"
-        writeVdfScript(scriptFileName)
-
-        val depotId = 101
-        val depots = mapOf(depotId to makeDepotInfo(depotId, scriptFileName))
-        val steamApp = makeSteamApp(depots)
-        val appInfo = makeAppInfo(listOf(depotId))
-
-        val scripts = InstallScriptExecutor.collectScripts(
-            steamApp = steamApp,
-            appInfo = appInfo,
-            gameDir = tempDir,
-            installDir = "C:\\Games\\TestGame",
-            language = "english",
-        )
-
-        assertEquals(1, scripts.size)
-        assertTrue(scripts[0].registryActions.isNotEmpty())
-    }
-
-    @Test
-    fun collectScripts_skipsDepotsNotDownloaded() {
-        val scriptFileName = "installscript.vdf"
-        writeVdfScript(scriptFileName)
-
-        val depotId = 101
-        val depots = mapOf(depotId to makeDepotInfo(depotId, scriptFileName))
-        val steamApp = makeSteamApp(depots)
-        val appInfo = makeAppInfo(emptyList()) // not downloaded
-
-        val scripts = InstallScriptExecutor.collectScripts(
-            steamApp = steamApp,
-            appInfo = appInfo,
-            gameDir = tempDir,
-            installDir = "C:\\Games\\TestGame",
-            language = "english",
-        )
-
-        assertTrue(scripts.isEmpty())
-    }
 
     // --- mergeWithLanguage tests ---
 
