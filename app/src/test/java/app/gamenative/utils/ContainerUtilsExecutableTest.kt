@@ -90,6 +90,8 @@ class ContainerUtilsExecutableTest {
 
             val exeIndex = results.indexOfFirst { it.endsWith("game.exe") }
             val batIndex = results.indexOfFirst { it.endsWith("game.bat") }
+            assertTrue("game.exe should be found", exeIndex >= 0)
+            assertTrue("game.bat should be found", batIndex >= 0)
             assertTrue("game.exe should rank before game.bat", exeIndex < batIndex)
         } finally {
             tempDir.deleteRecursively()

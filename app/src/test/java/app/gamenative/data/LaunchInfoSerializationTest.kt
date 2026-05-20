@@ -2,6 +2,7 @@ package app.gamenative.data
 
 import app.gamenative.enums.OS
 import app.gamenative.enums.OSArch
+import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
