@@ -1,9 +1,9 @@
 package app.gamenative.utils.installscript
 
-import `in`.dragonbra.javasteam.types.KeyValue
 import com.winlator.xenvironment.ImageFs
-import timber.log.Timber
+import `in`.dragonbra.javasteam.types.KeyValue
 import java.io.File
+import timber.log.Timber
 
 object InstallScriptParser {
 

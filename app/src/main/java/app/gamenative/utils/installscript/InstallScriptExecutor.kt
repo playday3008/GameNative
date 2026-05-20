@@ -4,8 +4,8 @@ import app.gamenative.data.AppInfo
 import app.gamenative.data.SteamApp
 import com.winlator.container.Container
 import com.winlator.core.WineRegistryEditor
-import timber.log.Timber
 import java.io.File
+import timber.log.Timber
 
 object InstallScriptExecutor {
 
@@ -145,7 +145,7 @@ object InstallScriptExecutor {
                 val keyPath = action.hasRunKey.substringBeforeLast("\\")
                 val valueName = action.hasRunKey.substringAfterLast("\\")
                 val currentValue = editor.getDwordValue(
-                    stripHivePrefix(keyPath), valueName, 0
+                    stripHivePrefix(keyPath), valueName, 0,
                 ) ?: 0
                 currentValue >= maxOf(1, action.minimumHasRunValue)
             }
