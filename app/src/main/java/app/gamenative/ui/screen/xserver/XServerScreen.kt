@@ -3730,7 +3730,7 @@ private fun getWineStartCommand(
         envVars.put("WINEPATH", "A:\\")
         when {
             ContainerUtils.isUriScheme(executablePath) -> "cmd /c start /WAIT \"\" \"$executablePath\""
-            ContainerUtils.isBatchScript(executablePath) -> "cmd /c \"A:\\${normalizedPath}\""
+            ContainerUtils.isBatchScript(executablePath) -> "cmd /c call \"A:\\${normalizedPath}\""
             else -> "\"A:\\${normalizedPath}\""
         }
     } else if (container.executablePath.isEmpty()) {
@@ -3788,7 +3788,7 @@ private fun getWineStartCommand(
                 }
                 when {
                     ContainerUtils.isUriScheme(executablePath) -> "cmd /c start /WAIT \"\" \"$executablePath\""
-                    ContainerUtils.isBatchScript(executablePath) -> "cmd /c \"$drive:/${executablePath}\""
+                    ContainerUtils.isBatchScript(executablePath) -> "cmd /c call \"$drive:/${executablePath}\""
                     else -> "\"$drive:/${executablePath}\""
                 }
             } else {
