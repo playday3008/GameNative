@@ -112,13 +112,16 @@ object InstallScriptExecutor {
         screenInfo: String,
         is64Bit: Boolean,
     ): List<RunProcessCommand> {
-        val systemRegFile = File(container.rootDir, ".wine/system.reg")
         val commands = mutableListOf<RunProcessCommand>()
 
         for (script in scripts) {
             for (action in script.runProcessActions) {
                 if (!matchesOS(action.requirementOS, is64Bit)) continue
-                if (hasAlreadyRun(systemRegFile, action)) continue
+
+                val effectiveHasRunKey = action.hasRunKey
+                    ?: "Software\\GameNative\\InstallScript\\${script.sourcePath.hashCode()}\\${action.name}"
+
+                if (hasAlreadyRun(container, effectiveHasRunKey, action.minimumHasRunValue)) continue
 
                 val cmdLine = if (action.command.isNotEmpty()) {
                     "${action.process} ${action.command}"
@@ -127,9 +130,6 @@ object InstallScriptExecutor {
                 }
                 val wrapped = wrapAsGuestExecutable(cmdLine, screenInfo)
 
-                val effectiveHasRunKey = action.hasRunKey
-                    ?: "Software\\GameNative\\InstallScript\\${script.sourcePath.hashCode()}\\${action.name}"
-
                 commands.add(RunProcessCommand(wrapped, effectiveHasRunKey))
             }
         }
@@ -137,10 +137,10 @@ object InstallScriptExecutor {
     }
 
     fun markRunProcessComplete(container: Container, hasRunKey: String) {
-        val systemRegFile = File(container.rootDir, ".wine/system.reg")
-        if (!systemRegFile.exists()) return
+        val regFile = resolveRegFile(container, hasRunKey)
+        if (!regFile.exists()) return
         try {
-            WineRegistryEditor(systemRegFile).use { editor ->
+            WineRegistryEditor(regFile).use { editor ->
                 editor.setCreateKeyIfNotExist(true)
                 val keyPath = hasRunKey.substringBeforeLast("\\")
                 val valueName = hasRunKey.substringAfterLast("\\")
@@ -168,24 +168,35 @@ object InstallScriptExecutor {
     }
 
     internal fun stripHivePrefix(keyPath: String): String {
+        val prefixes = listOf("HKEY_LOCAL_MACHINE\\", "HKEY_CURRENT_USER\\", "HKLM\\", "HKCU\\")
+        for (prefix in prefixes) {
+            if (keyPath.startsWith(prefix, ignoreCase = true)) {
+                return keyPath.substring(prefix.length)
+            }
+        }
         return keyPath
-            .removePrefix("HKLM\\")
-            .removePrefix("HKEY_LOCAL_MACHINE\\")
-            .removePrefix("HKCU\\")
-            .removePrefix("HKEY_CURRENT_USER\\")
     }
 
-    private fun hasAlreadyRun(systemRegFile: File, action: RunProcessAction): Boolean {
-        if (action.hasRunKey == null) return false
-        if (!systemRegFile.exists()) return false
+    private fun isHkcuKey(keyPath: String): Boolean =
+        keyPath.startsWith("HKCU", ignoreCase = true) ||
+            keyPath.startsWith("HKEY_CURRENT_USER", ignoreCase = true)
+
+    private fun resolveRegFile(container: Container, hasRunKey: String): File {
+        val regName = if (isHkcuKey(hasRunKey)) ".wine/user.reg" else ".wine/system.reg"
+        return File(container.rootDir, regName)
+    }
+
+    private fun hasAlreadyRun(container: Container, hasRunKey: String, minimumHasRunValue: Int): Boolean {
+        val regFile = resolveRegFile(container, hasRunKey)
+        if (!regFile.exists()) return false
         return try {
-            WineRegistryEditor(systemRegFile).use { editor ->
-                val keyPath = action.hasRunKey.substringBeforeLast("\\")
-                val valueName = action.hasRunKey.substringAfterLast("\\")
+            WineRegistryEditor(regFile).use { editor ->
+                val keyPath = hasRunKey.substringBeforeLast("\\")
+                val valueName = hasRunKey.substringAfterLast("\\")
                 val currentValue = editor.getDwordValue(
                     stripHivePrefix(keyPath), valueName, 0,
                 ) ?: 0
-                currentValue >= maxOf(1, action.minimumHasRunValue)
+                currentValue >= maxOf(1, minimumHasRunValue)
             }
         } catch (e: Exception) {
             false

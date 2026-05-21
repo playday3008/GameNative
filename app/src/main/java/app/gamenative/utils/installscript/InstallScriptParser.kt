@@ -131,7 +131,7 @@ object InstallScriptParser {
                             }
                         }
                         if (langStrings.isNotEmpty() || langDwords.isNotEmpty()) {
-                            languageOverrides[childName] = RegistryValues(
+                            languageOverrides[childName.lowercase()] = RegistryValues(
                                 strings = langStrings,
                                 dwords = langDwords,
                             )
