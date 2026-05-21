@@ -14,6 +14,7 @@ import timber.log.Timber
 object InstallScriptExecutor {
 
     private const val CLAIMED_OS_TYPE = "10"
+    private const val EXIT_CODE_FILE = "installscript_exit"
 
     data class RunProcessCommand(
         val executable: String,
@@ -223,8 +224,21 @@ object InstallScriptExecutor {
         }
     }
 
+    fun readExitCode(container: Container): Int {
+        val exitFile = File(container.rootDir, ".wine/drive_c/$EXIT_CODE_FILE")
+        return try {
+            val code = exitFile.readText().trim().toIntOrNull() ?: -1
+            exitFile.delete()
+            code
+        } catch (e: Exception) {
+            -1
+        }
+    }
+
     private fun wrapAsGuestExecutable(cmdChain: String, screenInfo: String): String {
-        val wrapped = "winhandler.exe cmd /c \"$cmdChain & taskkill /F /IM explorer.exe & wineserver -k\""
+        val exitFile = "C:\\$EXIT_CODE_FILE"
+        val wrapped = "winhandler.exe cmd /c \"($cmdChain && echo 0 > $exitFile || echo 1 > $exitFile) " +
+            "& taskkill /F /IM explorer.exe & wineserver -k\""
         return "wine explorer /desktop=shell,$screenInfo $wrapped"
     }
 }

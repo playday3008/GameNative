@@ -3259,7 +3259,14 @@ private fun setupXEnvironment(
     val chainedInstallScript = installScriptRunProcessCommands.map { cmd ->
         ChainedCommand(cmd.executable) {
             if (cmd.hasRunKey != null) {
-                InstallScriptExecutor.markRunProcessComplete(container, cmd.hasRunKey)
+                val exitCode = InstallScriptExecutor.readExitCode(container)
+                if (exitCode == 0) {
+                    InstallScriptExecutor.markRunProcessComplete(container, cmd.hasRunKey)
+                } else {
+                    Timber.tag("InstallScript").w(
+                        "Run process exited with code $exitCode, will retry next launch",
+                    )
+                }
             }
         }
     }
